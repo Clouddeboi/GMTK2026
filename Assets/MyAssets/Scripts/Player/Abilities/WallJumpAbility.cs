@@ -8,8 +8,22 @@ public class WallJumpAbility : MovementAbility
     public float checkDistance = 0.6f;
     public float checkHeight = 0.6f;
 
+    private bool unlocked;
+
+    public override bool IsUnlocked => unlocked;
+
+    public override void Unlock()
+    {
+        unlocked = true;
+    }
+
     public override void TickAbility(float dt)
     {
+        if (!unlocked)
+        {
+            return;
+        }
+
         if (Controller.IsGrounded)
         {
             return;

@@ -10,7 +10,11 @@ public class DashAbility : MovementAbility
     private int dashesUsedSinceGrounded;
     private Vector3 dashDirection;
 
-    private void OnEnable()
+    // No longer gated by the component's enabled flag - any effect that raises DashCount above
+    // 0 (a dedicated unlock OR a plain stat-upgrade powerup) makes this ability work.
+    public override bool IsUnlocked => Stats != null && Stats.GetValue(StatType.DashCount) > 0f;
+
+    public override void Unlock()
     {
         if (Stats != null && Stats.GetValue(StatType.DashCount) <= 0f)
         {

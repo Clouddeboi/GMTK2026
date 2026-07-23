@@ -15,6 +15,7 @@ public class RunManager : MonoBehaviour
     public float deathDelay = 1.5f;
 
     private Coroutine resetRoutine;
+    private bool awaitingReset;
 
     private void Awake()
     {
@@ -32,15 +33,26 @@ public class RunManager : MonoBehaviour
     private void OnEnable()
     {
         GameEvents.OnPlayerDeath += HandlePlayerDeath;
+        GameEvents.OnPowerupSelected += HandlePowerupSelected;
     }
 
     private void OnDisable()
     {
         GameEvents.OnPlayerDeath -= HandlePlayerDeath;
+        GameEvents.OnPowerupSelected -= HandlePowerupSelected;
     }
 
     private void HandlePlayerDeath()
     {
+        // Ignore duplicate death events that arrive while we're already mid-sequence
+        // (e.g. a stray/late GameEvents.PlayerDeath() call) so the delay doesn't restart.
+        if (awaitingReset)
+        {
+            return;
+        }
+
+        awaitingReset = true;
+
         if (resetRoutine != null)
         {
             StopCoroutine(resetRoutine);
@@ -52,6 +64,22 @@ public class RunManager : MonoBehaviour
     private IEnumerator ResetAfterDelay()
     {
         yield return new WaitForSeconds(deathDelay);
+
+        // Only hand off to the powerup selection UI if something is actually listening for
+        // it. Otherwise (UI not set up in the scene yet) fall back to resetting immediately
+        // instead of getting stuck waiting forever for a selection that will never come.
+        if (GameEvents.OnPowerupSelectionRequested != null)
+        {
+            GameEvents.RequestPowerupSelection();
+        }
+        else
+        {
+            ResetRun();
+        }
+    }
+
+    private void HandlePowerupSelected()
+    {
         ResetRun();
     }
 
@@ -77,6 +105,8 @@ public class RunManager : MonoBehaviour
         {
             playerStateManager.Revive();
         }
+
+        awaitingReset = false;
 
         GameEvents.RunReset();
     }

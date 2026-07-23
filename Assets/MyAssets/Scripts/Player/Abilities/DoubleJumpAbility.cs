@@ -7,7 +7,11 @@ public class DoubleJumpAbility : MovementAbility
 
     private int airJumpsUsed;
 
-    private void OnEnable()
+    // No longer gated by the component's enabled flag - any effect that raises ExtraAirJumps
+    // above 0 (a dedicated unlock OR a plain stat-upgrade powerup) makes this ability work.
+    public override bool IsUnlocked => Stats != null && Stats.GetValue(StatType.ExtraAirJumps) > 0f;
+
+    public override void Unlock()
     {
         if (Stats != null && Stats.GetValue(StatType.ExtraAirJumps) <= 0f)
         {

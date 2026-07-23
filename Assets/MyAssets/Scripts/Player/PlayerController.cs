@@ -87,10 +87,7 @@ public class PlayerController : MonoBehaviour
     {
         foreach (MovementAbility ability in abilities)
         {
-            if (ability.enabled)
-            {
-                ability.TickAbility(dt);
-            }
+            ability.TickAbility(dt);
         }
     }
 

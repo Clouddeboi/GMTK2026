@@ -9,12 +9,15 @@ public static class GameEvents
 
     public static Action OnRunReset;
 
+    public static Action OnPowerupSelectionRequested;
+
+    public static Action OnPowerupSelected;
+
 
     public static void PlayerDeath()
     {
         OnPlayerDeath?.Invoke();
     }
-
 
     public static void PlayerVictory()
     {
@@ -24,6 +27,16 @@ public static class GameEvents
     public static void RunReset()
     {
         OnRunReset?.Invoke();
+    }
+
+    public static void RequestPowerupSelection()
+    {
+        OnPowerupSelectionRequested?.Invoke();
+    }
+
+    public static void PowerupSelected()
+    {
+        OnPowerupSelected?.Invoke();
     }
 
 }
