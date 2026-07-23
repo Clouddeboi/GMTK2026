@@ -217,6 +217,16 @@ public class PlayerController : MonoBehaviour
 
     public void SetPlanarVelocity(Vector3 value) => planarVelocity = value;
 
+    public void Teleport(Vector3 position, Quaternion rotation)
+    {
+        controller.enabled = false;
+        transform.SetPositionAndRotation(position, rotation);
+        controller.enabled = true;
+
+        SetPlanarVelocity(Vector3.zero);
+        SetVerticalVelocity(0f);
+    }
+
     public void ConsumeJumpBuffer() => jumpBufferTimer = 0f;
 
     public void ExpireCoyote() => coyoteTimer = 0f;

@@ -7,6 +7,8 @@ public static class GameEvents
 
     public static Action OnPlayerVictory;
 
+    public static Action OnRunReset;
+
 
     public static void PlayerDeath()
     {
@@ -17,6 +19,11 @@ public static class GameEvents
     public static void PlayerVictory()
     {
         OnPlayerVictory?.Invoke();
+    }
+
+    public static void RunReset()
+    {
+        OnRunReset?.Invoke();
     }
 
 }
