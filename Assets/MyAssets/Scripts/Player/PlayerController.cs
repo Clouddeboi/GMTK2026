@@ -1,38 +1,65 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInputHandler))]
+[RequireComponent(typeof(PlayerStats))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement")]
-    public float maxMoveSpeed = 7f;
-    public float acceleration = 28f;
-    public float deceleration = 40f;
-    public float airControlMultiplier = 0.45f;
-    public float rotationSpeed = 14f;
+    [Header("Platforming Feel")]
+    public float coyoteTime = 0.12f;
+    public float jumpBufferTime = 0.15f;
 
-    [Header("Jump and Gravity")]
-    public float jumpHeight = 1.6f;
-    public float gravity = -30f;
+    [Header("Ground Check")]
     public float groundedSnap = -2f;
+
+    public PlayerStats Stats { get; private set; }
+    public PlayerInputHandler InputHandler { get; private set; }
 
     private CharacterController controller;
     private ThirdPersonCamera cameraController;
-    private PlayerInputHandler input;
+    private readonly List<MovementAbility> abilities = new List<MovementAbility>();
 
     private Vector3 planarVelocity;
     private float verticalVelocity;
+    private float coyoteTimer;
+    private float jumpBufferTimer;
 
     public Vector3 PlanarVelocity => planarVelocity;
+    public float VerticalVelocity => verticalVelocity;
+    public bool IsGrounded { get; private set; }
+    public bool CanCoyoteJump => coyoteTimer > 0f;
+    public bool HasBufferedJump => jumpBufferTimer > 0f;
+
+    public bool ExternalPlanarControl { get; set; }
+
+    public event Action Jumped;
+    public event Action Landed;
+    public event Action SpinPerformed;
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-        input = GetComponent<PlayerInputHandler>();
+        InputHandler = GetComponent<PlayerInputHandler>();
+        Stats = GetComponent<PlayerStats>();
 
         if (Camera.main != null)
         {
             cameraController = Camera.main.GetComponent<ThirdPersonCamera>();
+        }
+
+        GetComponents(abilities);
+        abilities.Sort((a, b) => a.TickPriority.CompareTo(b.TickPriority));
+        foreach (MovementAbility ability in abilities)
+        {
+            ability.InitializeAbility(this);
+        }
+
+        Debug.Log($"[PlayerController] Found {abilities.Count} MovementAbility component(s) on '{gameObject.name}':");
+        foreach (MovementAbility ability in abilities)
+        {
+            Debug.Log($"[PlayerController]  - {ability.GetType().Name} (enabled={ability.enabled})");
         }
     }
 
@@ -40,16 +67,67 @@ public class PlayerController : MonoBehaviour
     {
         float dt = Time.deltaTime;
 
+        UpdateGroundedState();
+        UpdateJumpBuffer();
+
         Vector3 desiredMoveDirection = GetDesiredMoveDirection();
-        UpdatePlanarVelocity(desiredMoveDirection, dt);
-        HandleJumpAndGravity(dt);
+        if (!ExternalPlanarControl)
+        {
+            UpdatePlanarVelocity(desiredMoveDirection, dt);
+        }
+
+        TickAbilities(dt);
+
+        ApplyGravity(dt);
         ApplyMovement(dt);
         UpdateFacing(dt);
     }
 
+    private void TickAbilities(float dt)
+    {
+        foreach (MovementAbility ability in abilities)
+        {
+            if (ability.enabled)
+            {
+                ability.TickAbility(dt);
+            }
+        }
+    }
+
+    private void UpdateGroundedState()
+    {
+        bool wasGrounded = IsGrounded;
+        IsGrounded = controller.isGrounded;
+
+        if (IsGrounded)
+        {
+            coyoteTimer = coyoteTime;
+            if (!wasGrounded)
+            {
+                Landed?.Invoke();
+            }
+        }
+        else
+        {
+            coyoteTimer -= Time.deltaTime;
+        }
+    }
+
+    private void UpdateJumpBuffer()
+    {
+        if (InputHandler.JumpPressedThisFrame)
+        {
+            jumpBufferTimer = jumpBufferTime;
+        }
+        else
+        {
+            jumpBufferTimer -= Time.deltaTime;
+        }
+    }
+
     private Vector3 GetDesiredMoveDirection()
     {
-        Vector2 moveInput = input.MoveInput;
+        Vector2 moveInput = InputHandler.MoveInput;
 
         Vector3 forward;
         Vector3 right;
@@ -78,32 +156,28 @@ public class PlayerController : MonoBehaviour
 
     private void UpdatePlanarVelocity(Vector3 desiredMoveDirection, float dt)
     {
-        Vector3 targetPlanarVelocity = desiredMoveDirection * maxMoveSpeed;
+        float moveSpeed = Stats.GetValue(StatType.MoveSpeed);
+        Vector3 targetPlanarVelocity = desiredMoveDirection * moveSpeed;
 
         bool hasInput = desiredMoveDirection.sqrMagnitude > 0.0001f;
-        float rate = hasInput ? acceleration : deceleration;
+        float rate = hasInput ? Stats.GetValue(StatType.Acceleration) : Stats.GetValue(StatType.Deceleration);
 
-        if (!controller.isGrounded)
+        if (!IsGrounded)
         {
-            rate *= airControlMultiplier;
+            rate *= Stats.GetValue(StatType.AirControl);
         }
 
         planarVelocity = Vector3.MoveTowards(planarVelocity, targetPlanarVelocity, rate * dt);
     }
 
-    private void HandleJumpAndGravity(float dt)
+    private void ApplyGravity(float dt)
     {
-        if (controller.isGrounded && verticalVelocity < 0f)
+        if (IsGrounded && verticalVelocity < 0f)
         {
             verticalVelocity = groundedSnap;
         }
 
-        if (controller.isGrounded && input.ConsumeJumpPressed())
-        {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        }
-
-        verticalVelocity += gravity * dt;
+        verticalVelocity += Stats.GetValue(StatType.Gravity) * dt;
     }
 
     private void ApplyMovement(float dt)
@@ -128,6 +202,44 @@ public class PlayerController : MonoBehaviour
         }
 
         Quaternion targetRotation = Quaternion.LookRotation(flatVelocity.normalized, Vector3.up);
+
+        if (ExternalPlanarControl)
+        {
+            transform.rotation = targetRotation;
+            return;
+        }
+
+        float rotationSpeed = Stats.GetValue(StatType.RotationSpeed);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * dt);
+    }
+
+    public void SetVerticalVelocity(float value) => verticalVelocity = value;
+
+    public void SetPlanarVelocity(Vector3 value) => planarVelocity = value;
+
+    public void ConsumeJumpBuffer() => jumpBufferTimer = 0f;
+
+    public void ExpireCoyote() => coyoteTimer = 0f;
+
+    public void NotifyJumped() => Jumped?.Invoke();
+
+    public void NotifySpin() => SpinPerformed?.Invoke();
+
+    public Vector3 GetFacingDirection()
+    {
+        Vector3 moveDir = GetDesiredMoveDirection();
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            return moveDir.normalized;
+        }
+
+        Vector3 facing = transform.forward;
+        facing.y = 0f;
+        return facing.sqrMagnitude > 0.0001f ? facing.normalized : Vector3.forward;
+    }
+
+    public Vector3 GetInputMoveDirection()
+    {
+        return GetDesiredMoveDirection();
     }
 }

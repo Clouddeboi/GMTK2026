@@ -7,26 +7,39 @@ public class PlayerInputHandler : MonoBehaviour
     public Vector2 LookInput { get; private set; }
     public bool JumpHeld { get; private set; }
     public bool IsUsingGamepad { get; private set; }
+    public bool JumpPressedThisFrame { get; private set; }
+    public bool DashPressedThisFrame { get; private set; }
+    public bool SpinPressedThisFrame { get; private set; }
 
-    private bool jumpQueued;
     private PlayerInputActions inputActions;
 
     private void Awake()
     {
         inputActions = new PlayerInputActions();
 
-        // Keep jump event-based for queue semantics.
         inputActions.Player.Jump.started += OnJumpStarted;
         inputActions.Player.Jump.canceled += OnJumpCanceled;
+
+        inputActions.Player.Dash.started += OnDashStarted;
+        inputActions.Player.Spin.started += OnSpinStarted;
     }
 
-    private void OnEnable() => inputActions.Enable();
-    private void OnDisable() => inputActions.Disable();
+    private void OnEnable()
+    {
+        inputActions.Enable();
+    }
+
+    private void OnDisable()
+    {
+        inputActions.Disable();
+    }
 
     private void OnDestroy()
     {
         inputActions.Player.Jump.started -= OnJumpStarted;
         inputActions.Player.Jump.canceled -= OnJumpCanceled;
+        inputActions.Player.Dash.started -= OnDashStarted;
+        inputActions.Player.Spin.started -= OnSpinStarted;
         inputActions.Dispose();
     }
 
@@ -44,9 +57,16 @@ public class PlayerInputHandler : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        JumpPressedThisFrame = false;
+        DashPressedThisFrame = false;
+        SpinPressedThisFrame = false;
+    }
+
     private void OnJumpStarted(InputAction.CallbackContext ctx)
     {
-        jumpQueued = true;
+        JumpPressedThisFrame = true;
         JumpHeld = true;
         IsUsingGamepad = ctx.control?.device is Gamepad;
     }
@@ -56,10 +76,16 @@ public class PlayerInputHandler : MonoBehaviour
         JumpHeld = false;
     }
 
-    public bool ConsumeJumpPressed()
+    private void OnDashStarted(InputAction.CallbackContext ctx)
     {
-        if (!jumpQueued) return false;
-        jumpQueued = false;
-        return true;
+        DashPressedThisFrame = true;
+        IsUsingGamepad = ctx.control?.device is Gamepad;
+    }
+
+    private void OnSpinStarted(InputAction.CallbackContext ctx)
+    {
+        SpinPressedThisFrame = true;
+        IsUsingGamepad = ctx.control?.device is Gamepad;
     }
 }
+
