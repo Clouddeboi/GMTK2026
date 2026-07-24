@@ -37,6 +37,8 @@ public class PlayerController : MonoBehaviour
     public event Action Jumped;
     public event Action Landed;
     public event Action SpinPerformed;
+    public event Action DashPerformed;
+    public event Action WallJumped;
 
     private void Awake()
     {
@@ -231,6 +233,10 @@ public class PlayerController : MonoBehaviour
     public void NotifyJumped() => Jumped?.Invoke();
 
     public void NotifySpin() => SpinPerformed?.Invoke();
+
+    public void NotifyDash() => DashPerformed?.Invoke();
+
+    public void NotifyWallJump() => WallJumped?.Invoke();
 
     public Vector3 GetFacingDirection()
     {

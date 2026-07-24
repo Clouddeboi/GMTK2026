@@ -10,9 +10,9 @@ public class DashAbility : MovementAbility
     private int dashesUsedSinceGrounded;
     private Vector3 dashDirection;
 
-    // No longer gated by the component's enabled flag - any effect that raises DashCount above
-    // 0 (a dedicated unlock OR a plain stat-upgrade powerup) makes this ability work.
     public override bool IsUnlocked => Stats != null && Stats.GetValue(StatType.DashCount) > 0f;
+
+    public bool IsDashing => dashTimeRemaining > 0f;
 
     public override void Unlock()
     {
@@ -87,5 +87,6 @@ public class DashAbility : MovementAbility
         cooldownRemaining = Stats.GetValue(StatType.DashCooldown);
         dashesUsedSinceGrounded++;
         Debug.Log($"[DashAbility] Firing dash #{dashesUsedSinceGrounded} direction={dashDirection} duration={dashTimeRemaining}");
+        Controller.NotifyDash();
     }
 }

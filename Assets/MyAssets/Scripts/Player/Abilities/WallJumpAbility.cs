@@ -4,6 +4,9 @@ public class WallJumpAbility : MovementAbility
 {
     public override int TickPriority => -10;
 
+    [Tooltip("If true, this ability is unlocked as soon as the game starts (no pickup needed). Useful for testing.")]
+    public bool startUnlocked = false;
+
     public LayerMask wallMask = ~0;
     public float checkDistance = 0.6f;
     public float checkHeight = 0.6f;
@@ -15,6 +18,15 @@ public class WallJumpAbility : MovementAbility
     public override void Unlock()
     {
         unlocked = true;
+    }
+
+    public override void InitializeAbility(PlayerController controller)
+    {
+        base.InitializeAbility(controller);
+        if (startUnlocked)
+        {
+            Unlock();
+        }
     }
 
     public override void TickAbility(float dt)
@@ -55,5 +67,6 @@ public class WallJumpAbility : MovementAbility
         Controller.SetPlanarVelocity(new Vector3(launchDirection.x, 0f, launchDirection.z) * force);
         Controller.SetVerticalVelocity(launchDirection.y * force);
         Controller.NotifyJumped();
+        Controller.NotifyWallJump();
     }
 }
