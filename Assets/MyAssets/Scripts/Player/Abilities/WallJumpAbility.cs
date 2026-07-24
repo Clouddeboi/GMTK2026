@@ -8,7 +8,7 @@ public class WallJumpAbility : MovementAbility
     public bool startUnlocked = false;
 
     public LayerMask wallMask = ~0;
-    public float checkDistance = 0.6f;
+    public float checkDistance = 0.8f;
     public float checkHeight = 0.6f;
 
     private bool unlocked;
